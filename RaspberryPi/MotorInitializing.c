@@ -1,4 +1,4 @@
-#include <stdio.h>
+	AS#include <stdio.h>
 #include <stdlib.h>
 #include <wiringPi.h>
 
@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <time.h>
+#include <signal.h>
 #include "IMU.c"
 
 #define DT 0.02			//loop period. 20ms
@@ -45,8 +46,20 @@ int timeval_subtract(struct timeval *result, struct timeval *t2, struct timeval 
 	return (diff<0);
 }	
 
+void(*old_fun) (int);
+
+void sigint_handler(int signo) {
+	printf("all motors are stoped!!!\n");
+	printf("process terminated!!!\n");
+	digitalWrite(Relay_Ch1, HIGH);
+	digitalWrite(Relay_Ch2, HIGH);
+	digitalWrite(Relay_Ch3, HIGH);
+	digitalWrite(Relay_Ch4, HIGH);
+	signal(SIGINT, old_fun);
+}
 int main()
 {
+	old_fun = signal(SIGINT, sigint_handler);
 	float rate_gyr_y = 0.0;		// [deg/sec]
 	float rate_gyr_x = 0.0;		// [deg/sec]
 	float rate_gyr_z = 0.0;		// [deg/sec]
@@ -81,6 +94,8 @@ int main()
 	//Initializing the mortar's head (toward north & set horizentally)
 	
 	if(wiringPiSetup() == -1) return 0;
+
+	//Set GPIO pin as output
 	pinMode(Relay_Ch1, OUTPUT);
 	pinMode(Relay_Ch2, OUTPUT);
 	pinMode(Relay_Ch3, OUTPUT);
@@ -109,11 +124,17 @@ int main()
 	
 	//tilt until being horizon
 	if(AccYangle < HORIZONTAL_DEGREE){		//if AccYangle is lower than HORIZONTAL_DEGREE
-		digitalWrite(Relay_Ch3, HIGH);		//tilt motor moves up
+		digitalWrite(Relay_Ch1, HIGH);
+		digitalWrite(Relay_Ch2, HIGH);
+		digitalWrite(Relay_Ch4, HIGH);
+		digitalWrite(Relay_Ch3, LOW);		//tilt motor moves up
 		motor_status = 3;					
 	}
 	else if(AccYangle > HORIZONTAL_DEGREE) {//if AccYangle is higher than HORIZONTAL_DEGREE
-		digitalWrite(Relay_Ch4, HIGH);		//tilt motor moves down
+		digitalWrite(Relay_Ch1, HIGH);
+		digitalWrite(Relay_Ch2, HIGH);
+		digitalWrite(Relay_Ch3, HIGH);
+		digitalWrite(Relay_Ch4, LOW);		//tilt motor moves down
 		motor_status = 4;
 	}
 	
@@ -139,29 +160,19 @@ int main()
 		switch(motor_status){
 			case 3: 
 				if(AccYangle >= HORIZONTAL_DEGREE){			//when AccYangle is higer than HORIZONTAL_DEGREE
-					digitalWrite(Relay_Ch3, LOW);			//motor stop
+					digitalWrite(Relay_Ch3, HIGH);			//motor stop
 					printf("Tilt motor stopped\n");
 					motor_status = 0;
 				}
 				break;
 			case 4:
 				if(AccYangle <= HORIZONTAL_DEGREE){			//when AccYangle is lower than HORIZONTAL_DEGREE
-					digitalWrite(Relay_Ch4, LOW);			//motor stop
+					digitalWrite(Relay_Ch4, HIGH);			//motor stop
 					printf("Tilt motor stopped\n");
 					motor_status = 0;
 				}
 				break;
 		}
-
-		//
-	/*
-		digitalWrite(Relay_Ch1, HIGH);
-		printf("Channel 1: Relay ON\n");
-		delay(1000);
-		digitalWrite(Relay_Ch1, LOW);
-		printf("Channel 2: Relay OFF\n");
-		delay(1000);
-	*/
 	}
 	printf("tilt motor initializing completed!\n");
 	delay(20);
@@ -200,11 +211,17 @@ int main()
 
 	usleep(250000);
 	if(heading > NORTH_DEGREE){						//pan motor starts turning right
-		digitalWrite(Relay_Ch1, HIGH);
+		digitalWrite(Relay_Ch1, LOW);
+		digitalWrite(Relay_Ch2, HIGH);
+		digitalWrite(Relay_Ch3, HIGH);
+		digitalWrite(Relay_Ch4, HIGH);
 		motor_status = 1;
 	}
 	else if (heading < NORTH_DEGREE){				//pan motor starts turning left
-		digitalWrite(Relay_Ch2, HIGH);
+		digitalWrite(Relay_Ch1, HIGH);
+		digitalWrite(Relay_Ch2, LOW);
+		digitalWrite(Relay_Ch3, HIGH);
+		digitalWrite(Relay_Ch4, HIGH);
 		motor_status = 2;
 	}
 		
@@ -233,13 +250,13 @@ int main()
 		switch(motor_status){
 		case 1:
 			if(heading > NORTH_DEGREE){				//when the motor becomes heading NORTH_DEGREE
-				digitalWrite(Relay_Ch1, LOW);		//motor stops
+				digitalWrite(Relay_Ch1, HIGH);		//motor stops
 				motor_status = 0;
 			}
 			break;
 		case 2:
 			if(heading < NORTH_DEGREE){				
-				digitalWrite(Relay_Ch2, LOW);
+				digitalWrite(Relay_Ch2, HIGH);
 				motor_status;
 			}
 			break;
