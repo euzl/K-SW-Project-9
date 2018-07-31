@@ -1,4 +1,4 @@
-	AS#include <stdio.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <wiringPi.h>
 
@@ -8,8 +8,8 @@
 #include <fcntl.h>
 #include <string.h>
 #include <time.h>
-#include <signal.h>
 #include "IMU.c"
+#include <signal.h>
 
 #define DT 0.02			//loop period. 20ms
 #define AA 0.97			//complementary filter constant
@@ -24,9 +24,13 @@
 #define M_PI 3.14159265358979323846
 
 #define HORIZONTAL_DEGREE 0
-#define NORTH_DEGREE 90
+#define SOUTH_DEGREE 180 
 void  INThandler(int sig)// Used to do a nice clean exit when Ctrl-C is pressed
 {
+	digitalWrite(Relay_Ch1, HIGH);
+	digitalWrite(Relay_Ch2, HIGH);
+	digitalWrite(Relay_Ch3, HIGH);
+	digitalWrite(Relay_Ch4, HIGH);
 	signal(sig, SIG_IGN);
 	exit(0);
 }
@@ -46,20 +50,8 @@ int timeval_subtract(struct timeval *result, struct timeval *t2, struct timeval 
 	return (diff<0);
 }	
 
-void(*old_fun) (int);
-
-void sigint_handler(int signo) {
-	printf("all motors are stoped!!!\n");
-	printf("process terminated!!!\n");
-	digitalWrite(Relay_Ch1, HIGH);
-	digitalWrite(Relay_Ch2, HIGH);
-	digitalWrite(Relay_Ch3, HIGH);
-	digitalWrite(Relay_Ch4, HIGH);
-	signal(SIGINT, old_fun);
-}
 int main()
 {
-	old_fun = signal(SIGINT, sigint_handler);
 	float rate_gyr_y = 0.0;		// [deg/sec]
 	float rate_gyr_x = 0.0;		// [deg/sec]
 	float rate_gyr_z = 0.0;		// [deg/sec]
@@ -94,8 +86,6 @@ int main()
 	//Initializing the mortar's head (toward north & set horizentally)
 	
 	if(wiringPiSetup() == -1) return 0;
-
-	//Set GPIO pin as output
 	pinMode(Relay_Ch1, OUTPUT);
 	pinMode(Relay_Ch2, OUTPUT);
 	pinMode(Relay_Ch3, OUTPUT);
@@ -120,21 +110,26 @@ int main()
 	AccXangle = (float) (atan2(accRaw[1],accRaw[2])+M_PI)*RAD_TO_DEG;
 	AccYangle = (float) (atan2(accRaw[2],accRaw[0])+M_PI)*RAD_TO_DEG;
 	//print angle values
+	AccXangle -= (float)180.0;
+	if (AccYangle > 90)
+			AccYangle -= (float)270;
+	else
+			AccYangle += (float)90;
 	printf ("   GyroX  %7.3f \t AccXangle \e[m %7.3f \t \033[22;31mCFangleX %7.3f\033[0m\t GyroY  %7.3f \t AccYangle %7.3f \t \033[22;36mCFangleY %7.3f\t\033[0m\n",gyroXangle,AccXangle,CFangleX,gyroYangle,AccYangle,CFangleY);
 	
 	//tilt until being horizon
-	if(AccYangle < HORIZONTAL_DEGREE){		//if AccYangle is lower than HORIZONTAL_DEGREE
+	if(AccYangle > HORIZONTAL_DEGREE){		//if AccYangle is lower than HORIZONTAL_DEGREE
 		digitalWrite(Relay_Ch1, HIGH);
 		digitalWrite(Relay_Ch2, HIGH);
-		digitalWrite(Relay_Ch4, HIGH);
-		digitalWrite(Relay_Ch3, LOW);		//tilt motor moves up
+		digitalWrite(Relay_Ch3, LOW);
+		digitalWrite(Relay_Ch2, HIGH);
 		motor_status = 3;					
 	}
-	else if(AccYangle > HORIZONTAL_DEGREE) {//if AccYangle is higher than HORIZONTAL_DEGREE
-		digitalWrite(Relay_Ch1, HIGH);
-		digitalWrite(Relay_Ch2, HIGH);
-		digitalWrite(Relay_Ch3, HIGH);
-		digitalWrite(Relay_Ch4, LOW);		//tilt motor moves down
+	else if(AccYangle <= HORIZONTAL_DEGREE) {//if AccYangle is higher than HORIZONTAL_DEGREE
+		digitalWrite(Relay_Ch1, HIGH);		//tilt motor moves down
+		digitalWrite(Relay_Ch2, HIGH);		//tilt motor moves up
+		digitalWrite(Relay_Ch3, HIGH);		//tilt motor moves up
+		digitalWrite(Relay_Ch4, LOW);		//tilt motor moves up
 		motor_status = 4;
 	}
 	
@@ -157,24 +152,41 @@ int main()
 	    AccXangle = (float) (atan2(accRaw[1],accRaw[2])+M_PI)*RAD_TO_DEG;
 	    AccYangle = (float) (atan2(accRaw[2],accRaw[0])+M_PI)*RAD_TO_DEG;
 
+		AccXangle -= (float)180.0;
+		if (AccYangle > 90)
+			AccYangle -= (float)270;
+		else
+			AccYangle += (float)90;
 		switch(motor_status){
 			case 3: 
-				if(AccYangle >= HORIZONTAL_DEGREE){			//when AccYangle is higer than HORIZONTAL_DEGREE
-					digitalWrite(Relay_Ch3, HIGH);			//motor stop
+				if(AccYangle <= HORIZONTAL_DEGREE){			//when AccYangle is higer than HORIZONTAL_DEGREE
+					digitalWrite(Relay_Ch3, HIGH);
+					printf("AccYangle %7.3f \n", AccYangle);			//motor stop
 					printf("Tilt motor stopped\n");
 					motor_status = 0;
 				}
 				break;
 			case 4:
-				if(AccYangle <= HORIZONTAL_DEGREE){			//when AccYangle is lower than HORIZONTAL_DEGREE
+				if(AccYangle >= HORIZONTAL_DEGREE){			//when AccYangle is lower than HORIZONTAL_DEGREE
 					digitalWrite(Relay_Ch4, HIGH);			//motor stop
+					printf("AccYangle %7.3f \n", AccYangle);			//motor stop
 					printf("Tilt motor stopped\n");
 					motor_status = 0;
 				}
 				break;
 		}
+
+		//
+	/*
+		digitalWrite(Relay_Ch1, HIGH);
+		printf("Channel 1: Relay ON\n");
+		delay(1000);
+		digitalWrite(Relay_Ch1, LOW);
+		printf("Channel 2: Relay OFF\n");
+		delay(1000);
+	*/
 	}
-	printf("tilt motor initializing completed!\n");
+	printf("Tilt motor initializing completed!\n");
 	delay(20);
 	//
 	//pan motor part
@@ -187,9 +199,9 @@ int main()
 	if(heading < 0)
 		heading += 360;
 
-	printf("head %7.3f \t ", heading);
+//	printf("head %7.3f \t ", heading);
 	accXnorm = accRaw[0]/sqrt(accRaw[0] * accRaw[0] + accRaw[1] * accRaw[1] + accRaw[2] * accRaw[2]);
-    accYnorm = accRaw[1]/sqrt(accRaw[0] * accRaw[0] + accRaw[1] * accRaw[1] + accRaw[2] * accRaw[2]);
+	accYnorm = accRaw[1]/sqrt(accRaw[0] * accRaw[0] + accRaw[1] * accRaw[1] + accRaw[2] * accRaw[2]);
 	
 	//Calculate pithc and roll
 	pitch = asin(accXnorm);
@@ -209,26 +221,32 @@ int main()
 
 	printf("Compensated Heading %7.3f \n", heading);
 
-	usleep(250000);
-	if(heading > NORTH_DEGREE){						//pan motor starts turning right
-		digitalWrite(Relay_Ch1, LOW);
+	usleep(2500);
+	if(heading >= SOUTH_DEGREE){						//If heading value is bigger than 180, pen motor turns 
+		digitalWrite(Relay_Ch1, LOW);					//pan motor starts turning counter clock wis
 		digitalWrite(Relay_Ch2, HIGH);
 		digitalWrite(Relay_Ch3, HIGH);
 		digitalWrite(Relay_Ch4, HIGH);
 		motor_status = 1;
 	}
-	else if (heading < NORTH_DEGREE){				//pan motor starts turning left
+	else if (heading < SOUTH_DEGREE){					
 		digitalWrite(Relay_Ch1, HIGH);
 		digitalWrite(Relay_Ch2, LOW);
 		digitalWrite(Relay_Ch3, HIGH);
 		digitalWrite(Relay_Ch4, HIGH);
 		motor_status = 2;
 	}
-		
+	printf("motor_status: %d\n", motor_status);
 	//move pan until heading North
 	while(motor_status == 1 || motor_status == 2){
 		readMAG(magRaw);
 		readACC(accRaw);
+
+		float heading = 180 * atan2(magRaw[1], magRaw[0])/M_PI;
+	
+		//convert heading to 0-360
+		if(heading < 0)
+			heading += 360;
 
 		accXnorm = accRaw[0]/sqrt(accRaw[0] * accRaw[0] + accRaw[1] * accRaw[1] + accRaw[2] * accRaw[2]);
 		accXnorm = accRaw[1]/sqrt(accRaw[0] * accRaw[0] + accRaw[1] * accRaw[1] + accRaw[2] * accRaw[2]);
@@ -238,7 +256,7 @@ int main()
 		if(LSM9DS0)
 		magYcomp = magRaw[0]*sin(roll)*sin(pitch)+magRaw[1]*cos(roll)-magRaw[2]*sin(roll)*cos    (pitch); // LSM9DS0
 		else
-        magYcomp = magRaw[0]*sin(roll)*sin(pitch)+magRaw[1]*cos(roll)+magRaw[2]*sin(roll)*cos    (pitch); // LSM9DS1
+      		magYcomp = magRaw[0]*sin(roll)*sin(pitch)+magRaw[1]*cos(roll)+magRaw[2]*sin(roll)*cos    (pitch); // LSM9DS1
 
 		//Calculate heading
 		heading = 180 * atan2(magYcomp, magXcomp)/M_PI;
@@ -246,22 +264,23 @@ int main()
 		//Convert heading to 0 - 360
 		if(heading < 0)
 			heading += 360;
-		
+		printf("%7.3f\n",heading);	
 		switch(motor_status){
 		case 1:
-			if(heading > NORTH_DEGREE){				//when the motor becomes heading NORTH_DEGREE
-				digitalWrite(Relay_Ch1, HIGH);		//motor stops
+			if(heading < SOUTH_DEGREE){				//when the motor becomes heading NORTH_DEGREE
+				digitalWrite(Relay_Ch1,HIGH);		//motor stops
+				printf("pan motor initialization is completed!\n");
 				motor_status = 0;
 			}
 			break;
 		case 2:
-			if(heading < NORTH_DEGREE){				
+			if(heading >= SOUTH_DEGREE){				
+				printf("pan motor initialization is completed!\n");
 				digitalWrite(Relay_Ch2, HIGH);
-				motor_status;
+				motor_status=0;
 			}
 			break;
 		}
-		printf("pan motor initialization is completed!\n");
 		usleep(25000);
 	}
 }
