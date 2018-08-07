@@ -13,7 +13,7 @@
 #include <time.h>
 #include "IMU.c"
 #include <signal.h>
-#include <float.h>
+
 
 #define DT 0.02			//loop period. 20ms
 #define AA 0.97			//complementary filter constant
@@ -31,7 +31,7 @@
 #define SOUTH_DEGREE 180
 
 double headingArray[10] = {-DBL_MAX};
-	double calcAverage(){
+	void calcAverage(){
 		int i;
 		int num=0;
 		double sum=0;
@@ -39,7 +39,7 @@ double headingArray[10] = {-DBL_MAX};
 		for(i=0; i< 10; i++) {
 			if(headingArray[i] < min)
 					min = headingArray[i];
-			if(headingArray[i] > max)
+			if(headinArray[i] > max)
 					max = headingArray[i];
 		}
 
@@ -61,20 +61,20 @@ double headingArray[10] = {-DBL_MAX};
 			}
 		}
 		if(sum < 0)
-				return (sum/num + 360);
+				return (sum/num + 360)
 		else
 			return (sum/num);
 	}
 	
 	void enqueueArray(double val){
 		int idx=0;
-		for(idx=0; idx< 10; idx++){
+		for(idx=0; i< 10; i++){
 			if(headingArray[idx]!=-DBL_MAX){
 					headingArray[idx] = val;
 					return;
 			}
 		}
-		for(idx=9; idx<9; idx++) {
+		for(idx=9; i<9; i++) {
 			headingArray[idx] = headingArray[idx+1];
 		}
 		headingArray[10] = val;
@@ -173,7 +173,7 @@ double headingArray[10] = {-DBL_MAX};
 		else
 			AccYangle += (float)90;
 		printf("   GyroX  %7.3f \t AccXangle \e[m %7.3f \t \033[22;31mCFangleX %7.3f\033[0m\t GyroY  %7.3f \t AccYangle %7.3f \t \033[22;36mCFangleY %7.3f\t\033[0m\n", gyroXangle, AccXangle, CFangleX, gyroYangle, AccYangle, CFangleY);
-	
+		enqueueArray(AccYangle);
 		//tilt until being horizon
 		if (AccYangle > HORIZONTAL_DEGREE) {		//if AccYangle is lower than HORIZONTAL_DEGREE
 			digitalWrite(Relay_Ch1, HIGH);
@@ -214,6 +214,7 @@ double headingArray[10] = {-DBL_MAX};
 				AccYangle -= (float)270;
 			else
 				AccYangle += (float)90;
+			enqueueArray(AccYangle);
 			switch (motor_status) {
 			case 3:
 				if (AccYangle <= HORIZONTAL_DEGREE) {			//when AccYangle is higer than HORIZONTAL_DEGREE
@@ -251,6 +252,7 @@ double headingArray[10] = {-DBL_MAX};
 		readMAG(magRaw);
 		readACC(accRaw);
 		float heading = 180 * atan2(magRaw[1], magRaw[0]) / M_PI;
+
 		//convert heading to 0-360
 		if (heading < 0)
 			heading += 360;
@@ -276,17 +278,16 @@ double headingArray[10] = {-DBL_MAX};
 			heading += 360;
 
 		printf("Compensated Heading %7.3f \n", heading);
-		enqueueArray(heading);
 
 		usleep(2500);
-		if (calcAverage() >= SOUTH_DEGREE) {						//If heading value is bigger than 180, pen motor turns 
+		if (heading >= SOUTH_DEGREE) {						//If heading value is bigger than 180, pen motor turns 
 			digitalWrite(Relay_Ch1, LOW);					//pan motor starts turning counter clock wis
 			digitalWrite(Relay_Ch2, HIGH);
 			digitalWrite(Relay_Ch3, HIGH);
 			digitalWrite(Relay_Ch4, HIGH);
 			motor_status = 1;
 		}
-		else if (calcAverage() < SOUTH_DEGREE) {
+		else if (heading < SOUTH_DEGREE) {
 			digitalWrite(Relay_Ch1, HIGH);
 			digitalWrite(Relay_Ch2, LOW);
 			digitalWrite(Relay_Ch3, HIGH);
@@ -321,18 +322,17 @@ double headingArray[10] = {-DBL_MAX};
 			//Convert heading to 0 - 360
 			if (heading < 0)
 				heading += 360;
-			enqueueArray(heading);
-			printf("%7.3f\n", calcAverage());
+			printf("%7.3f\n", heading);
 			switch (motor_status) {
 			case 1:
-				if (calcAverage() < SOUTH_DEGREE) {				//when the motor becomes heading NORTH_DEGREE
+				if (heading < SOUTH_DEGREE) {				//when the motor becomes heading NORTH_DEGREE
 					digitalWrite(Relay_Ch1, HIGH);		//motor stops
 					printf("pan motor initialization is completed!\n");
 					motor_status = 0;
 				}
 				break;
 			case 2:
-				if (calcAverage() >= SOUTH_DEGREE) {
+				if (heading >= SOUTH_DEGREE) {
 					printf("pan motor initialization is completed!\n");
 					digitalWrite(Relay_Ch2, HIGH);
 					motor_status = 0;
