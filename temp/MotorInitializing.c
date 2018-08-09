@@ -29,18 +29,21 @@
 
 #define HORIZONTAL_DEGREE 0
 #define SOUTH_DEGREE 180
+#define NORTH_DEGREE 0
 
-double headingArray[10] = {-DBL_MAX};
+double headingArray[10] = {-DBL_MAX,};
 	double calcAverage(){
 		int i;
 		int num=0;
 		double sum=0;
 		double min = DBL_MAX, max =-DBL_MAX;
 		for(i=0; i< 10; i++) {
-			if(headingArray[i] < min)
-					min = headingArray[i];
-			if(headingArray[i] > max)
-					max = headingArray[i];
+				if(headingArray[i] != DBL_MAX){
+					if(headingArray[i] < min)
+						min = headingArray[i];
+					if(headingArray[i] > max)
+						max = headingArray[i];
+			}
 		}
 
 		for(i=0; i< 10; i++) {
@@ -69,15 +72,15 @@ double headingArray[10] = {-DBL_MAX};
 	void enqueueArray(double val){
 		int idx=0;
 		for(idx=0; idx< 10; idx++){
-			if(headingArray[idx]!=-DBL_MAX){
+			if(headingArray[idx]==-DBL_MAX){
 					headingArray[idx] = val;
 					return;
 			}
 		}
-		for(idx=9; idx<9; idx++) {
+		for(idx=0; idx<9; idx++) {
 			headingArray[idx] = headingArray[idx+1];
 		}
-		headingArray[10] = val;
+		headingArray[9] = val;
 		return;
 	}
 
@@ -109,6 +112,10 @@ double headingArray[10] = {-DBL_MAX};
 
 	int motorInitializing()
 	{
+		int i;
+		for(i=0; i< 10; i++) {
+			headingArray[i]=-DBL_MAX;
+		}
 		float rate_gyr_y = 0.0;		// [deg/sec]
 		float rate_gyr_x = 0.0;		// [deg/sec]
 		float rate_gyr_z = 0.0;		// [deg/sec]
@@ -179,7 +186,7 @@ double headingArray[10] = {-DBL_MAX};
 			digitalWrite(Relay_Ch1, HIGH);
 			digitalWrite(Relay_Ch2, HIGH);
 			digitalWrite(Relay_Ch3, LOW);
-			digitalWrite(Relay_Ch2, HIGH);
+			digitalWrite(Relay_Ch4, HIGH);
 			motor_status = 3;
 		}
 		else if (AccYangle <= HORIZONTAL_DEGREE) {//if AccYangle is higher than HORIZONTAL_DEGREE
@@ -234,20 +241,13 @@ double headingArray[10] = {-DBL_MAX};
 			}
 
 			//
-		/*
-			digitalWrite(Relay_Ch1, HIGH);
-			printf("Channel 1: Relay ON\n");
-			delay(1000);
-			digitalWrite(Relay_Ch1, LOW);
-			printf("Channel 2: Relay OFF\n");
-			delay(1000);
-		*/
 		}
 		printf("Tilt motor initializing completed!\n");
 		delay(20);
 		//
 		//pan motor part
 		//
+		////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 		readMAG(magRaw);
 		readACC(accRaw);
 		float heading = 180 * atan2(magRaw[1], magRaw[0]) / M_PI;
@@ -262,24 +262,24 @@ double headingArray[10] = {-DBL_MAX};
 		//Calculate pithc and roll
 		pitch = asin(accXnorm);
 		roll = -asin(accYnorm / cos(pitch));
-		//Calculate new tilt compensated values
+		//Calculate the new tilt compensated values
 		magXcomp = magRaw[0] * cos(pitch) + magRaw[2] * sin(pitch);
 		if (LSM9DS0)
 			magYcomp = magRaw[0] * sin(roll)*sin(pitch) + magRaw[1] * cos(roll) - magRaw[2] * sin(roll)*cos(pitch); // LSM9DS0
 		else
 			magYcomp = magRaw[0] * sin(roll)*sin(pitch) + magRaw[1] * cos(roll) + magRaw[2] * sin(roll)*cos(pitch); // LSM9DS1
 
-		//Calculate heading
+																													//Calculate heading
 		heading = 180 * atan2(magYcomp, magXcomp) / M_PI;
-
+		//Convert heading to 0 - 360
 		if (heading < 0)
 			heading += 360;
 
-		printf("Compensated Heading %7.3f \n", heading);
 		enqueueArray(heading);
+		printf("Compensated Heading %7.3f %7.3f\n", heading, headingArray[0]);
 
-		usleep(2500);
-		if (calcAverage() >= SOUTH_DEGREE) {						//If heading value is bigger than 180, pen motor turns 
+		usleep(25000);
+		if (calcAverage()>= SOUTH_DEGREE) {						//If heading value is bigger than 180, pen motor turns 
 			digitalWrite(Relay_Ch1, LOW);					//pan motor starts turning counter clock wis
 			digitalWrite(Relay_Ch2, HIGH);
 			digitalWrite(Relay_Ch3, HIGH);
@@ -298,35 +298,36 @@ double headingArray[10] = {-DBL_MAX};
 		while (motor_status == 1 || motor_status == 2) {
 			readMAG(magRaw);
 			readACC(accRaw);
-
 			float heading = 180 * atan2(magRaw[1], magRaw[0]) / M_PI;
-
 			//convert heading to 0-360
 			if (heading < 0)
 				heading += 360;
 
+			//	printf("head %7.3f \t ", heading);
 			accXnorm = accRaw[0] / sqrt(accRaw[0] * accRaw[0] + accRaw[1] * accRaw[1] + accRaw[2] * accRaw[2]);
-			accXnorm = accRaw[1] / sqrt(accRaw[0] * accRaw[0] + accRaw[1] * accRaw[1] + accRaw[2] * accRaw[2]);
+			accYnorm = accRaw[1] / sqrt(accRaw[0] * accRaw[0] + accRaw[1] * accRaw[1] + accRaw[2] * accRaw[2]);
+
+			//Calculate pithc and roll
 			pitch = asin(accXnorm);
 			roll = -asin(accYnorm / cos(pitch));
-
+			//Calculate the new tilt compensated values
+			magXcomp = magRaw[0] * cos(pitch) + magRaw[2] * sin(pitch);
 			if (LSM9DS0)
 				magYcomp = magRaw[0] * sin(roll)*sin(pitch) + magRaw[1] * cos(roll) - magRaw[2] * sin(roll)*cos(pitch); // LSM9DS0
 			else
 				magYcomp = magRaw[0] * sin(roll)*sin(pitch) + magRaw[1] * cos(roll) + magRaw[2] * sin(roll)*cos(pitch); // LSM9DS1
 
-			//Calculate heading
+																														//Calculate heading
 			heading = 180 * atan2(magYcomp, magXcomp) / M_PI;
-
 			//Convert heading to 0 - 360
 			if (heading < 0)
 				heading += 360;
 			enqueueArray(heading);
-			printf("%7.3f\n", calcAverage());
+			printf("%7.3f\t\t%7.3f\n", heading, calcAverage());
 			switch (motor_status) {
 			case 1:
-				if (calcAverage() < SOUTH_DEGREE) {				//when the motor becomes heading NORTH_DEGREE
-					digitalWrite(Relay_Ch1, HIGH);		//motor stops
+				if (calcAverage() < SOUTH_DEGREE ) {				//when the motor becomes heading NORTH_DEGREE
+					digitalWrite(Relay_Ch1, HIGH);				//motor stops
 					printf("pan motor initialization is completed!\n");
 					motor_status = 0;
 				}
