@@ -79,7 +79,7 @@ void getOmega(double lat1, double long1, double lat2, double long2, double * _om
 
 	if ((long1-long2)<0 && (lat1-lat2)>0){
 		printf("come on");
-		*_omega = atan2(lat2 - lat1, long2 - long1) - 0.5*PI;
+		*_omega = atan2(lat2 - lat1, long2 - long1) - 1.5*PI;
 	}
 
 	else{
