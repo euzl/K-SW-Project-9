@@ -5,17 +5,17 @@
 #include <math.h>
 
 
-#define INITIAL_VELOCITY 120 //ÃÊ±â¼Óµµ 30m/s·Î ¼³Á¤(ÀÓ½Ã)
+#define INITIAL_VELOCITY 120 //ÃƒÃŠÂ±Ã¢Â¼Ã“ÂµÂµ 30m/sÂ·Ã Â¼Â³ÃÂ¤(Ã€Ã“Â½Ãƒ)
 #define PI 3.14159265358979323846
-#define G 9.80665 //Áß·Â°¡¼Óµµ(m/s^2)
+#define G 9.80665 //ÃÃŸÂ·Ã‚Â°Â¡Â¼Ã“ÂµÂµ(m/s^2)
 	
 double deg2rad(double degree);
 double rad2deg(double radian);
 
-// lat À§µµ   long °æµµ
-// theta ÆÒ¸ğÅÍ È¸Àü°¢   omega Æ¿Æ®¸ğÅÍ È¸Àü°¢
+// lat Ã€Â§ÂµÂµ   long Â°Ã¦ÂµÂµ
+// theta Ã†Ã’Â¸Ã°Ã…Ã ÃˆÂ¸Ã€Ã¼Â°Â¢   omega Ã†Â¿Ã†Â®Â¸Ã°Ã…Ã ÃˆÂ¸Ã€Ã¼Â°Â¢
 
-// µÎ ÁöÁ¡ »çÀÌÀÇ °Å¸® dis
+// ÂµÃ ÃÃ¶ÃÂ¡ Â»Ã§Ã€ÃŒÃ€Ã‡ Â°Ã…Â¸Â® dis
 // unit : m(statute miles), k(kilometers), n(nautical miles)
 void getDistance(double lat1, double long1, double lat2, double long2, double* _dis);
 
@@ -25,17 +25,22 @@ void getOmega(double lat1, double long1, double lat2, double long2, double* _ome
 int calcAngleAndHeading(double* _loc_val, double* _theta, double* _omega) {
 
 
-	double dis;// »ç°Å¸®
-
-	getDistance(_loc_val[0], _loc_val[1], _loc_val[2], _loc_val[3], &dis);
+	double dis;// Â»Ã§Â°Ã…Â¸Â®
+	int i;
+	for(i =0 ;i< 4; i++) {
+		printf("%6.3lf\n", _loc_val[i]);
+	}
+	getDistance(_loc_val[1], _loc_val[0], _loc_val[3], _loc_val[2], &dis);
 	//cout << "\nx:" << dis << endl;
 	getTheta(dis, _theta);
-	//cout << "theta:" << *_theta << endl; // ¶óµğ¾È °ª
-	getOmega(_loc_val[2], _loc_val[3], _loc_val[0], _loc_val[1], _omega);
-	//cout << "Omega:" << *_omega << endl; // ¿À¸Ş°¡ °ª
+	//cout << "theta:" << *_theta << endl; // Â¶Ã³ÂµÃ°Â¾Ãˆ Â°Âª
+	getOmega(_loc_val[3], _loc_val[2], _loc_val[1], _loc_val[0], _omega);
+	//cout << "Omega:" << *_omega << endl; // Â¿Ã€Â¸ÃÂ°Â¡ Â°Âª
 	printf("angle: %7.5lf compass: %7.5lf\n", *_theta, *_omega);
 	*_theta = rad2deg(*_theta);
-	*_omega = rad2deg(*_omega);	
+	*_omega = rad2deg(*_omega);
+	if(*_omega < 0)
+		*_omega += 360;	
 	//cin >> dis;
 	printf("angle: %7.5lf compass: %7.5lf\n", *_theta, *_omega);
 
@@ -69,7 +74,18 @@ void getTheta(double _dis, double*_theta)
 
 void getOmega(double lat1, double long1, double lat2, double long2, double * _omega)
 {
-	// Á¤ºÏ¹æÇâ±âÁØ
-	*_omega = atan2(lat2 - lat1, long2 - long1); // [-pi, +pi]
+	// ÃÂ¤ÂºÃÂ¹Ã¦Ã‡Ã¢Â±Ã¢ÃÃ˜
+	//
+
+	if ((long1-long2)<0 && (lat1-lat2)>0){
+		printf("come on");
+		*_omega = atan2(lat2 - lat1, long2 - long1) - 0.5*PI;
+	}
+
+	else{
+		*_omega = atan2(lat2 - lat1, long2 - long1) + 1.5*PI;
+	}	
+	
+	printf("omega : %7.5lf", *_omega);
 } 
 #endif

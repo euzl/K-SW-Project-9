@@ -149,7 +149,13 @@ int readCompass(int *_magRaw, int *_accRaw, double* _heading) {
 }
 
 int moveTiltToTarget(double* ttArr, double towardAngle, int* _accRaw, int* _gyrRaw, double* _AccXangle, double* _AccYangle, bool* flag) {
-	
+	printf("Average Angle: %6.3lf\n, target Angle: %6.3lf\n", TcalcAverage(ttArr), towardAngle);
+	if (TcalcAverage(ttArr) < towardAngle )
+		*flag = true;
+	else if(abs(TcalcAverage(ttArr) - towardAngle) < 180)
+		*flag = false;
+	else
+		*flag = true;
 	if (*flag == true) {										//if now angle is lower than toward angle
 		digitalWrite(Relay_Ch1, HIGH);
 		digitalWrite(Relay_Ch2, HIGH);
@@ -192,52 +198,17 @@ int moveTiltToTarget(double* ttArr, double towardAngle, int* _accRaw, int* _gyrR
 	}
 }
 int movePanToTarget(double* tpArr, double towardCompass, int* _magRaw, int* _accRaw, double* _heading, bool* flag, int* _motorstatus) {
+	if (_motorstatus == 0){
 		if(towardCompass<180) {
 			*flag = true;
 			*_motorstatus = 1;
-
 		}
-		else {
+		else if(towardCompass >=180) {
 			*flag = false;
 			*_motorstatus =2;
 		}
-	printf("motor status %d\n",*_motorstatus);
-	if(*flag == true){
-		digitalWrite(Relay_Ch1, LOW);
-		digitalWrite(Relay_Ch2, HIGH);
-		digitalWrite(Relay_Ch3, HIGH);
-		digitalWrite(Relay_Ch4, HIGH);
-		while(!(TcalcAverage(tpArr) < 180 && towardCompass < TcalcAverage(tpArr))){
-			readCompass(_magRaw, _accRaw, _heading);
-			TenqueueArray(tpArr, *_heading);
-			printf("now heading: %7.4lf\ttarget degree: %7.4lf\n", TcalcAverage(tpArr), towardCompass);
-			usleep(25000);
-		}
-		digitalWrite(Relay_Ch1, HIGH);
-		digitalWrite(Relay_Ch2, HIGH);
-		digitalWrite(Relay_Ch3, HIGH);
-		digitalWrite(Relay_Ch4, HIGH);
-		_motorstatus =0;
 	}
 	else {
-		digitalWrite(Relay_Ch1, HIGH);
-		digitalWrite(Relay_Ch2, LOW);
-		digitalWrite(Relay_Ch3, HIGH);
-		digitalWrite(Relay_Ch4, HIGH);
-		while(!(TcalcAverage(tpArr) > 180 && towardCompass > TcalcAverage(tpArr))){
-			readCompass(_magRaw, _accRaw, _heading);
-			TenqueueArray(tpArr, *_heading);
-			printf("now heading: %7.4lf\ttarget degree: %7.4lf\n", TcalcAverage(tpArr), towardCompass);
-			usleep(25000);
-		}
-		digitalWrite(Relay_Ch1, HIGH);
-		digitalWrite(Relay_Ch2, HIGH);
-		digitalWrite(Relay_Ch3, HIGH);
-		digitalWrite(Relay_Ch4, HIGH);
-		_motorstatus =0;
-	}
-		
-/*	else {
 		if(TcalcAverage(tpArr) < towardCompass) {
 			*flag = true;
 		}
@@ -309,7 +280,7 @@ int movePanToTarget(double* tpArr, double towardCompass, int* _magRaw, int* _acc
 		else {
 		//	movePanToTarget(tpArr, towardCompass, _magRaw, _accRaw, _heading, flag, _motorstatus);
 		}
-	}*/
+	}
 }
 			
 int motorMoveToTarget(double* _loc_val)
@@ -337,6 +308,8 @@ int motorMoveToTarget(double* _loc_val)
 	bool flag = true;					//if flag is true, flag motor goes up/counter clock wise
 										//else motor goes down, conter clock wise
 	calcAngleAndHeading(_loc_val, &towardAngle, &towardCompass);
+	if(towardCompass <0)
+		towardCompass +=360;
 	printf("%8.5lf %8.5lf", towardAngle, towardCompass);
 	signal(SIGINT, INThandler);
 
@@ -346,13 +319,9 @@ int motorMoveToTarget(double* _loc_val)
 	gettimeofday(&tvBegin, NULL);	//assign timevalue to tvBegin
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 	
-	readCompass(magRaw, accRaw, &heading);
-	TenqueueArray(tpArray, heading);
-	movePanToTarget(tpArray, towardCompass, magRaw, accRaw, &heading, &flag, &motor_status);
-	delay(3000);	
 	readAngle(accRaw, gyrRaw, &AccXangle, &AccYangle);
 	//Initializing the mortar's head (toward north & set horizentally)
-	TenqueueArray(ttArray, AccYangle);
+
 	if (wiringPiSetup() == -1) return 0;
 	pinMode(Relay_Ch1, OUTPUT);
 	pinMode(Relay_Ch2, OUTPUT);
@@ -371,37 +340,24 @@ int motorMoveToTarget(double* _loc_val)
 		digitalWrite(Relay_Ch3, LOW);
 		digitalWrite(Relay_Ch4, HIGH);
 		motor_status = 3;
-		delay(1000);
 	}
 	else if (towardAngle <0) {//if AccYangle is higher than HORIZONTAL_DEGREE
 		printf("Mortar cannot heading lower than 0 degree!!");
 	}
-	while(TcalcAverage(ttArray)<towardAngle ){
-		printf("now Angle: %6.3lf , target Angle: %6.3lf", TcalcAverage(ttArray) , towardAngle);
-		readAngle(accRaw, gyrRaw, &AccXangle, &AccYangle);
-		TenqueueArray(ttArray, AccYangle);
-		usleep(25000);
-	}
-	
-	digitalWrite(Relay_Ch1, HIGH);
-	digitalWrite(Relay_Ch2, HIGH);
-	digitalWrite(Relay_Ch3, HIGH);
-	digitalWrite(Relay_Ch4, HIGH);
-	motor_status = 0;
 
 	printf("tilt motor initialization started\nMotor status: %d\n", motor_status);
 
 	//
 	//pan motor part
 	//
+	motor_status =0;
 	readCompass(magRaw, accRaw, &heading);
 	TenqueueArray(tpArray, heading);
 	printf("Compensated Heading %7.3f \n", heading);
 	movePanToTarget(tpArray, towardCompass, magRaw, accRaw, &heading, &flag, &motor_status);
 	delay(3000);	
 	TenqueueArray(ttArray, AccYangle);
-	
-	//moveTiltToTarget(ttArray, towardAngle,  accRaw, gyrRaw, &AccXangle, &AccYangle, &flag);
+	moveTiltToTarget(ttArray, towardAngle,  accRaw, gyrRaw, &AccXangle, &AccYangle, &flag);
 	usleep(25000);
 
 /*	if (towardCompass < 180) {						//If heading value is bigger than 180, pen motor turns 

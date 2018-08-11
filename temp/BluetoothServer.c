@@ -254,7 +254,7 @@ int startBluetoothServer(double* _loc_val)
 		printf("recv_message : %s\n", recv_message);
     }
 	if (_loc_val[0] != 0 && _loc_val[1] != 0 && _loc_val[2] != 0 && _loc_val[3] != 0) {
-		printf("longitude: %lf      latitude: %lf\n", _loc_val[0], _loc_val[1]);
+		//printf("longitude: %lf      latitude: %lf\n", _loc_val[0], _loc_val[1]);
 		printf("recieved the target :and mortar location successfully!\n");
 		return 1;
 	}
