@@ -9,9 +9,13 @@ We are participating in 'IITP Summer Program 2018' at Purdue University.
 
 # [Automate the aiming of a mortar]
 > Name : BGP (박격포)   
-> Member : Kim Seok-won, Park Jin-hui, Lee Yu-jin
+> Member : Kim Seok-won, Lee Yu-jin, Park Jin-hui `In alphabetical order`
 
 GPS 좌표를 이용하여 원하는 장소에 자동으로 박격포 에임을 맞추고 발사하는 프로젝트
+
+|포탄(3D프린트)|타겟위치 선택(어플)|박격포&Pan-tilt&라즈베리파이|
+|:--:|:--:|:--:|
+|![image](https://user-images.githubusercontent.com/37680108/116300166-8b323f80-a7d9-11eb-8b42-61874c4cf203.png)|![image](https://user-images.githubusercontent.com/37680108/116299967-47d7d100-a7d9-11eb-8fc8-feeb892e24e2.png)| ![image](https://user-images.githubusercontent.com/37680108/116299976-4ad2c180-a7d9-11eb-817d-b9a659607fc3.png)|
 
 ***
 ### 1st Week (6/27 ~ 7/03)
